@@ -1,14 +1,4 @@
-; Tileword
-; by
-; Jose M Vidal
-;
-; Tileworld was (first?) described in:
-;
-;Martha Pollack and Marc Ringuette. "Introducing the Tileworld: experimentally evaluating agent architectures."
-;Thomas Dietterich and William Swartout ed. In Proceedings of the Eighth National Conference on Artificial
-; Intelligence,  p. 183--189, AAAI Press. 1990.
-;
-;Note: fixed up for NetLogo 6.0.1 by Matt Saponaro
+;Mike Meehan, Konark Christian, Arnav Bindra
 
 breed [robots robot]
 breed [tiles tile]
