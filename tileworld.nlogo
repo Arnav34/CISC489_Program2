@@ -197,7 +197,7 @@ to set-robot-destination-block [arobot atile ahole]
           stop
         ]
   ]
-  set heading rectify-heading (towards atile)
+  set heading rectify-heading (heading)
   move-one heading
 
 end
@@ -211,7 +211,19 @@ to set-robot-destination-hole [arobot atile ahole]
         move-one 270 ;;move down
         ][ifelse([tile-y] of atile < [hole-y] of ahole and [tile-y] of atile > [ycor] of arobot and [tile-x] of atile = [xcor] of arobot)[
           move-one 90 ;;move-up
-        ][
+          ][ifelse(abs([xcor] of arobot - [tile-x] of atile) = 1 and abs([ycor] of arobot - [tile-y] of atile) = 1)[
+            ifelse([tile-y] of atile > [hole-y] of ahole)[
+            move-one 90 ;;move up
+            ][
+            move-one 270 ;; move down
+            ]
+          ][
+            ifelse([tile-x] of atile > [hole-x] of ahole)[
+            move-one 0 ;;move right
+            ][
+            move-one 180 ;;move left
+            ]
+          ]
         ]
       ]
     ]
@@ -225,8 +237,8 @@ to improved-move
   let currAgent self
   if (target-tile != 0 and target-tile != nobody)[
      ifelse (target-hole != 0 and target-hole != nobody)[
-      ask target-tile [set-robot-destination currAgent target-hole]
-      if (distancexy destination-x destination-y < .5) [ ;(xcor = destination-x and ycor = destination-y)[
+      ask target-tile [set-robot-destination currAgent target-tile]
+      if (distancexy destination-x destination-y < 1) [ ;(xcor = destination-x and ycor = destination-y)[
         ;Im already at the desired location, so push the tile
         set heading rectify-heading towards target-tile
         move-one heading
@@ -294,7 +306,6 @@ to assignAgent
     set listOfHoles remove [thishole] of n listOfHoles
   ]
 end
-
 @#$#@#$#@
 GRAPHICS-WINDOW
 210
