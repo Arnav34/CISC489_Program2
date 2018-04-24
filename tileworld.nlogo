@@ -105,7 +105,10 @@ end
 
 ;tiles and holes
 to age
-  if time-to-live <= 0 [die]
+  if time-to-live <= 0 [
+    die
+    ;; Ask the robots if their pairlist contained the tile or hole that died, and if it did, then add that robot to the listOfAgents
+  ]
   set time-to-live time-to-live - 1
 end
 
@@ -139,6 +142,7 @@ to move-one [h]
   if (breed = tiles and (any? holes-at dx dy))[
     set holes-filled holes-filled + (sum [value] of holes-at dx dy)
     ask holes-at dx dy [die]
+    ask robots [if ([tile-x] of (item 0 pairlist))[set listOfAgents lput myself listOfAgents]] ;;Adds the robot back to the list once the hole dies
     die]
   fd 1
   set heading oldh
@@ -212,18 +216,13 @@ to improved-move
 end
 
 to assignAgent
-  let distAtoB 0 ;; distance of Agent to Block
-  let distBtoH 0 ;; distance of Block to Hole
-  let scorePerMove 0
-  let bid 0
-  let dist 0
-  let currentBid 0
-  let bestAgent item 0 listOfAgents
-  let agentsToDiscard []
+  let bid 0 ;; The best value per distance so far in the list
+  let dist 0 ;; The number of moves required between the nearest agent to a block, then a block to a pair
+  let currentBid 0 ;; The current value per distance of the tile hole pair
+  let agentsToDiscard [] ;; This is the list of agents that are marked to be removed from the "available" list
   foreach listOfBlocks
   [
     block ->
-    ;;if( distance(min-one-of listOfAgents [distance block]) < 0)[ ;;If the distance from block to agent is less than the threshold
     foreach listOfHoles
     [
       h ->
@@ -245,7 +244,7 @@ to assignAgent
       ]
     ]
   ]
-  foreach agentsToDiscard [ ;;removes all of the used resources from the available lists
+  foreach agentsToDiscard [ ;;removes all of the used resources from the "available" lists
   n ->
     set listOfAgents remove n listOfAgents
     set listOfBlocks remove [item 1 pairlist] of n listOfBlocks
