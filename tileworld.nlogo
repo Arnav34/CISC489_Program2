@@ -76,6 +76,7 @@ to update
   ;;;;;;;;;;;;;;;;
   ask tiles [age]
   ask holes [age]
+  assignAgent
   no-display
   ask robots [move]
   display
@@ -178,23 +179,54 @@ to move
     move-one heading]
 end
 
-to-report assignAgent
+to f
+
+end
+
+to improved-move
+  let target-tile item 0 pairlist
+  let target-hole item 1 pairlist
+  if (target-tile != nobody)[
+     ifelse (target-hole != nobody)[
+      ask target-tile [set-robot-destination myself target-tile]
+      if (distancexy destination-x destination-y < .5) [ ;(xcor = destination-x and ycor = destination-y)[
+        ;Im already at the desired location, so push the tile
+        set heading rectify-heading towards target-tile
+        move-one heading
+        stop]]
+    [;there are no holes in the field, this typically only happens at the beginning of the run.
+      set destination-x [xcor] of target-tile
+      set destination-y [ycor] of target-tile]
+
+    ;I am not next to the tile, so set my heading towards the best position next to it.
+    set heading rectify-heading towardsxy destination-x destination-y
+
+    ;If my move will cause a tile to move then change direction by +- 90.
+    ;This will, hopefully, allow me to move around the target to push it back.
+    if (any? tiles-at dx dy)[
+      ifelse (random-float 1.0 < .5)[
+        set heading heading + 90]
+      [
+        set heading heading - 90]]
+    move-one heading]
+end
+
+to assignAgent
   let distAtoB 0 ;; distance of Agent to Block
   let distBtoH 0 ;; distance of Block to Hole
   let scorePerMove 0
   let bid 0
   let dist 0
   let currentBid 0
+  let bestAgent item 0 listOfAgents
+  let agentsToDiscard []
   foreach listOfBlocks
- [
+  [
     block ->
     ;;if( distance(min-one-of listOfAgents [distance block]) < 0)[ ;;If the distance from block to agent is less than the threshold
     foreach listOfHoles
     [
-        h ->
-      ;;let agentChosen min-one-of listOfAgents [distance block]
-      ;;set distAtoB [distance block] of agentChosen
-      ;;set distBtoH [distance h] of block
+      h ->
       set currentBid 0
       set dist abs ([hole-x] of h - [tile-x] of block) ;;add x distance
       set dist dist + abs ([hole-y] of h - [tile-y] of block) ;;add y distance
@@ -206,16 +238,21 @@ to-report assignAgent
         if(dist < [time-to-live] of h and dist < [time-to-live] of block)
         [
           set bid currentBid
-          set pairlist lput h pairlist
-          set pairlist lput block pairlist
-
+          ask closestAgent[set pairlist replace-item 0 pairlist h]
+          ask closestAgent[set pairlist replace-item 1 pairlist block]
+          set agentsToDiscard lput closestAgent agentsToDiscard
         ]
       ]
     ]
   ]
-
-
+  foreach agentsToDiscard [ ;;removes all of the used resources from the available lists
+  n ->
+    set listOfAgents remove n listOfAgents
+    set listOfBlocks remove [item 1 pairlist] of n listOfBlocks
+    set listOfHoles remove [item 0 pairlist] of n listOfHoles
+  ]
 end
+
 @#$#@#$#@
 GRAPHICS-WINDOW
 210
