@@ -207,6 +207,8 @@ to-report assignAgent
         [
           set bid currentBid
           set pairlist lput h pairlist
+          set pairlist lput block pairlist
+
         ]
       ]
     ]
