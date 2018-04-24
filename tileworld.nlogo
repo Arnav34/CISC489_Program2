@@ -13,13 +13,15 @@
 breed [robots robot]
 breed [tiles tile]
 breed [holes hole]
+breed [Avrobots Avrobot]
+breed [Avtiles Avtile]
+breed [Avholes Avhole]
 
 tiles-own [time-to-live tile-x tile-y]
 
 holes-own [time-to-live value hole-x hole-y]
 
-;desitnation- the next place I am heading towards
-robots-own [destination-x destination-y pairlist]
+robots-own [destination-x destination-y thistile thishole agentState]
 
 globals [holes-born holes-filled score listOfHoles listOfBlocks listOfAgents]
 
@@ -33,7 +35,7 @@ to setup
   set listOfAgents []
   create-robots num-robots [
     setxy random-xcor random-ycor]
-  foreach listOfAgents [n -> set listOfAgents lput n listOfAgents] ;; Add all agents to the active list of agents
+  ask robots[set listOfAgents lput self listOfAgents]
   reset-ticks
 end
 
@@ -44,41 +46,43 @@ to go
 end
 
 to update
+  let newtile 0
+  let newhole 0
   if (random-float 1.0 < tile-birth-prob) [
     create-tiles 1 [
       set heading 0
       set time-to-live tile-lifetime
-      setxy random-xcor random-ycor
-      set color yellow]]
+      set tile-x random-xcor
+      set tile-y random-ycor
+      setxy tile-x tile-y
+      set color yellow
+      set newtile who
+    ]
+    ask tile newtile [set listOfBlocks lput self listOfBlocks]
+  ]
   if (random-float 1.0 < hole-birth-prob) [
     set holes-born holes-born + 1
     create-holes 1 [
       set heading 0
       set time-to-live hole-lifetime
       set value random 50
-      setxy random-xcor random-ycor
-      set color blue]]
+      set hole-x random-xcor
+      set hole-y random-ycor
+      setxy hole-x hole-y
+      set color blue
+      set newhole who
+  ]
+  ask hole newhole [set listOfHoles lput self listOfHoles]]
+  ask robots[set listOfAgents lput self listOfAgents]
   ;;;;;;;;;;;;;;;
-  foreach listOfHoles [;; Add all holes to the active list of holes
-    h ->
-    set listOfHoles lput h listOfHoles
-    set hole-x [hole-x] of h
-    set hole-y [hole-y] of h
-  ]
-  set listOfHoles sort-by [value] listOfHoles ;; Might not be the correct syntax. DOUBLE CHECK THIS CODE
-  foreach listOfBlocks [  ;; Add all blocks to the active list of blocks
-    t ->
-    set listOfBlocks lput t listOfBlocks
-    set tile-x [tile-x] of t
-    set tile-y [tile-y] of t
-  ]
   set listOfBlocks sort listOfBlocks
+  set listOfHoles sort listOfHoles
   ;;;;;;;;;;;;;;;;
   ask tiles [age]
   ask holes [age]
   assignAgent
   no-display
-  ask robots [move]
+  ask robots [improved-move]
   display
 ;  plot holes-filled
   if (holes-born > 0)[
@@ -107,7 +111,7 @@ end
 to age
   if time-to-live <= 0 [
     die
-    ;; Ask the robots if their pairlist contained the tile or hole that died, and if it did, then add that robot to the listOfAgents
+    ;; Ask the robots if their block/tile contained the tile or hole that died, and if it did, then add that robot to the listOfAgents
   ]
   set time-to-live time-to-live - 1
 end
@@ -119,7 +123,7 @@ end
 ;HINT: This is a bad way to move tiles. Specifically, if the hole is on a diagonal
 ;  from the tile, the robot tends to move back-and-forth a lot.
 to set-robot-destination [arobot ahole]
-  set heading rectify-heading (towards ahole)
+  set heading rectify-heading (towards arobot)
   set heading heading + 180
   let new-x [pxcor] of patch-at dx dy
   let new-y [pycor] of patch-at dx dy
@@ -142,7 +146,7 @@ to move-one [h]
   if (breed = tiles and (any? holes-at dx dy))[
     set holes-filled holes-filled + (sum [value] of holes-at dx dy)
     ask holes-at dx dy [die]
-    ask robots [if ([tile-x] of (item 0 pairlist))[set listOfAgents lput myself listOfAgents]] ;;Adds the robot back to the list once the hole dies
+    ask robots [if ([tile-x] of thishole)[set listOfAgents lput myself listOfAgents]] ;;Adds the robot back to the list once the hole dies
     die]
   fd 1
   set heading oldh
@@ -154,45 +158,93 @@ end
 ; It tries to push the closest tile to the closest hole. This is a great
 ; strategy when there is only one robot, but when there are many you end up
 ; with all of them getting in each others' way.
-to move
+;to move
+;
+;  let closest-tile min-one-of tiles [distance myself]
+;  let closest-hole min-one-of holes [distance myself]
+;  if (closest-tile != nobody)[
+;     ifelse (closest-hole != nobody)[
+;      ask closest-tile [set-robot-destination myself closest-hole]
+;      if (distancexy destination-x destination-y < .5) [ ;(xcor = destination-x and ycor = destination-y)[
+;        ;Im already at the desired location, so push the tile
+;        set heading rectify-heading towards closest-tile
+;        move-one heading
+;        stop]]
+;    [;there are no holes in the field, this typically only happens at the beginning of the run.
+;      set destination-x [xcor] of closest-tile
+;      set destination-y [ycor] of closest-tile]
+;
+;    ;I am not next to the tile, so set my heading towards the best position next to it.
+;    set heading rectify-heading towardsxy destination-x destination-y
+;
+;    ;If my move will cause a tile to move then change direction by +- 90.
+;    ;This will, hopefully, allow me to move around the target to push it back.
+;    if (any? tiles-at dx dy)[
+;      ifelse (random-float 1.0 < .5)[
+;        set heading heading + 90]
+;      [
+;        set heading heading - 90]]
+;    move-one heading]
+;end
 
-  let closest-tile min-one-of tiles [distance myself]
-  let closest-hole min-one-of holes [distance myself]
-  if (closest-tile != nobody)[
-     ifelse (closest-hole != nobody)[
-      ask closest-tile [set-robot-destination myself closest-hole]
-      if (distancexy destination-x destination-y < .5) [ ;(xcor = destination-x and ycor = destination-y)[
-        ;Im already at the desired location, so push the tile
-        set heading rectify-heading towards closest-tile
-        move-one heading
-        stop]]
-    [;there are no holes in the field, this typically only happens at the beginning of the run.
-      set destination-x [xcor] of closest-tile
-      set destination-y [ycor] of closest-tile]
+to set-robot-destination-block [arobot ablock ahole]
+  if(abs ([xcor] of arobot - [tile-x] of ablock) <= 1)
+    [
+      if(abs ([ycor] of arobot - [tile-y] of ablock) <= 1)
+        [
+          set agentState 1 ;; Reposition state
+          set-robot-block-reposition arobot ablock ahole
+          stop
+        ]
+  ]
+  set heading rectify-heading (towards ablock)
+  move-one heading
 
-    ;I am not next to the tile, so set my heading towards the best position next to it.
-    set heading rectify-heading towardsxy destination-x destination-y
-
-    ;If my move will cause a tile to move then change direction by +- 90.
-    ;This will, hopefully, allow me to move around the target to push it back.
-    if (any? tiles-at dx dy)[
-      ifelse (random-float 1.0 < .5)[
-        set heading heading + 90]
-      [
-        set heading heading - 90]]
-    move-one heading]
 end
 
-to f
+to set-robot-block-reposition [arobot ablock ahole]
+  if(abs ([hole-x] of ahole - [tile-x] of ablock) < 1)
+    [
+      if(abs ([hole-y] of ahole - [tile-y] of ablock) < 1)
+        [
+          set agentState 2
+          set-robot-destination-hole arobot ablock ahole
+          stop
+        ]
+    ]
+
+end
+
+to set-robot-destination-hole [arobot ablock ahole]
+  ifelse(abs ([hole-x] of ahole - [tile-x] of ablock) < 1)
+    [
+      ifelse(abs ([hole-y] of ahole - [tile-y] of ablock) < 1)
+        [
+          set agentState 2
+          set-robot-destination-hole arobot ablock ahole
+          stop
+        ]
+        [
+          set heading rectify-heading (towards ahole)
+          move-one heading
+        ]
+  ][
+  if(abs ([hole-y] of ahole - [tile-y] of ablock) < 1)
+      [
+        set heading rectify-heading (towards ahole)
+        move-one heading
+      ]
+  ]
 
 end
 
 to improved-move
-  let target-tile item 0 pairlist
-  let target-hole item 1 pairlist
-  if (target-tile != nobody)[
-     ifelse (target-hole != nobody)[
-      ask target-tile [set-robot-destination myself target-tile]
+  let target-tile thishole
+  let target-hole thistile
+  let currAgent self
+  if (target-tile != 0 and target-tile != nobody)[
+     ifelse (target-hole != 0 and target-hole != nobody)[
+      ask target-tile [set-robot-destination currAgent target-tile]
       if (distancexy destination-x destination-y < .5) [ ;(xcor = destination-x and ycor = destination-y)[
         ;Im already at the desired location, so push the tile
         set heading rectify-heading towards target-tile
@@ -216,39 +268,49 @@ to improved-move
 end
 
 to assignAgent
-  let bid 0 ;; The best value per distance so far in the list
-  let dist 0 ;; The number of moves required between the nearest agent to a block, then a block to a pair
-  let currentBid 0 ;; The current value per distance of the tile hole pair
+  let bid 0.1 ;; The best value per distance so far in the list
+  let dist 0.1 ;; The number of moves required between the nearest agent to a block, then a block to a pair
+  let currentBid 0.1 ;; The current value per distance of the tile hole pair
   let agentsToDiscard [] ;; This is the list of agents that are marked to be removed from the "available" list
-  foreach listOfBlocks
-  [
-    block ->
-    foreach listOfHoles
+  if(listOfBlocks != [] and listOfHoles != [])[
+    foreach listOfBlocks
     [
-      h ->
-      set currentBid 0
-      set dist abs ([hole-x] of h - [tile-x] of block) ;;add x distance
-      set dist dist + abs ([hole-y] of h - [tile-y] of block) ;;add y distance
-      set currentBid ([value] of h / dist)
-      if(currentBid > bid)
+      block ->
+      foreach listOfHoles
       [
-        let closestAgent min-one-of listOfAgents [abs([tile-x] of block - xcor) + abs([tile-y] of block - ycor)]
-        set dist dist + abs([tile-x] of block - [xcor] of closestAgent) + abs([tile-y] of block - [ycor] of closestAgent)
-        if(dist < [time-to-live] of h and dist < [time-to-live] of block)
+        h ->
+        if(listOfAgents = [] or listOfHoles = [] or listOfBlocks = [] or block = nobody or h = nobody)[
+          set listOfAgents []
+          set listOfHoles remove h listOfHoles
+          set listOfBlocks remove block listOfBlocks
+          stop]
+        set currentBid 0.1
+        set dist abs ([hole-x] of h - [tile-x] of block) ;;add x distance
+        set dist dist + abs ([hole-y] of h - [tile-y] of block) ;;add y distance
+        set currentBid ([value] of h / dist)
+        if(currentBid > bid)
         [
-          set bid currentBid
-          ask closestAgent[set pairlist replace-item 0 pairlist h]
-          ask closestAgent[set pairlist replace-item 1 pairlist block]
-          set agentsToDiscard lput closestAgent agentsToDiscard
+          let closestAgent min-one-of turtle-set listOfAgents [abs([tile-x] of block - xcor) + abs([tile-y] of block - ycor)]
+          set dist dist + abs([tile-x] of block - [xcor] of closestAgent) + abs([tile-y] of block - [ycor] of closestAgent)
+          if(dist < [time-to-live] of h and dist < [time-to-live] of block)
+          [
+            set bid currentBid
+            ask closestAgent[set thishole h]
+            ask closestAgent[set thistile block]
+            set agentsToDiscard lput closestAgent agentsToDiscard
+          ]
         ]
       ]
     ]
   ]
   foreach agentsToDiscard [ ;;removes all of the used resources from the "available" lists
   n ->
+    show listOfAgents
+    show listOfBlocks
+    show listOfHoles
     set listOfAgents remove n listOfAgents
-    set listOfBlocks remove [item 1 pairlist] of n listOfBlocks
-    set listOfHoles remove [item 0 pairlist] of n listOfHoles
+    set listOfBlocks remove [thistile] of n listOfBlocks
+    set listOfHoles remove [thishole] of n listOfHoles
   ]
 end
 
