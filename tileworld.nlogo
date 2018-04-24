@@ -209,50 +209,50 @@ end
 ;    move-one heading]
 ;end
 
-to set-robot-destination-block [arobot atile ahole]
-  if(abs ([xcor] of arobot - [tile-x] of atile) <= 1) ;;if robot is next to a block in x-direction
-    [
-      if(abs ([ycor] of arobot - [tile-y] of atile) <= 1) ;;if robot is next to block in y-direction
-        [
-          set agentState 1 ;; Reposition state
-          set-robot-destination-hole arobot atile ahole
-          stop
-        ]
-  ]
-  set heading (towards atile)
-  set heading rectify-heading (heading)
-  move-one heading
-
-end
-
-to set-robot-destination-hole [arobot atile ahole]
-  ifelse([tile-x] of atile > [hole-x] of ahole and [tile-x] of atile < [xcor] of arobot and [tile-y] of atile = [ycor] of arobot)[
-    move-one 180 ;;move left
-  ][ifelse([tile-x] of atile < [hole-x] of ahole and [tile-x] of atile > [xcor] of arobot and [tile-y] of atile = [ycor] of arobot)[
-      move-one 0 ;;move-right
-      ][ifelse([tile-y] of atile > [hole-y] of ahole and [tile-y] of atile < [ycor] of arobot and [tile-x] of atile = [xcor] of arobot)[
-        move-one 270 ;;move down
-        ][ifelse([tile-y] of atile < [hole-y] of ahole and [tile-y] of atile > [ycor] of arobot and [tile-x] of atile = [xcor] of arobot)[
-          move-one 90 ;;move-up
-          ][ifelse(abs([xcor] of arobot - [tile-x] of atile) = 1 and abs([ycor] of arobot - [tile-y] of atile) = 1)[
-            ifelse([tile-y] of atile > [hole-y] of ahole)[
-            move-one 90 ;;move up
-            ][
-            move-one 270 ;; move down
-            ]
-          ][
-            ifelse([tile-x] of atile > [hole-x] of ahole)[
-            move-one 0 ;;move right
-            ][
-            move-one 180 ;;move left
-            ]
-          ]
-        ]
-      ]
-    ]
-  ]
-
-end
+;to set-robot-destination-block [arobot atile ahole]
+;  if(abs ([xcor] of arobot - [tile-x] of atile) <= 1) ;;if robot is next to a block in x-direction
+;    [
+;      if(abs ([ycor] of arobot - [tile-y] of atile) <= 1) ;;if robot is next to block in y-direction
+;        [
+;          set agentState 1 ;; Reposition state
+;          set-robot-destination-hole arobot atile ahole
+;          stop
+;        ]
+;  ]
+;  set heading (towards atile)
+;  set heading rectify-heading (heading)
+;  move-one heading
+;
+;end
+;
+;to set-robot-destination-hole [arobot atile ahole]
+;  ifelse([tile-x] of atile > [hole-x] of ahole and [tile-x] of atile < [xcor] of arobot and [tile-y] of atile = [ycor] of arobot)[
+;    move-one 180 ;;move left
+;  ][ifelse([tile-x] of atile < [hole-x] of ahole and [tile-x] of atile > [xcor] of arobot and [tile-y] of atile = [ycor] of arobot)[
+;      move-one 0 ;;move-right
+;      ][ifelse([tile-y] of atile > [hole-y] of ahole and [tile-y] of atile < [ycor] of arobot and [tile-x] of atile = [xcor] of arobot)[
+;        move-one 270 ;;move down
+;        ][ifelse([tile-y] of atile < [hole-y] of ahole and [tile-y] of atile > [ycor] of arobot and [tile-x] of atile = [xcor] of arobot)[
+;          move-one 90 ;;move-up
+;          ][ifelse(abs([xcor] of arobot - [tile-x] of atile) = 1 and abs([ycor] of arobot - [tile-y] of atile) = 1)[
+;            ifelse([tile-y] of atile > [hole-y] of ahole)[
+;            move-one 90 ;;move up
+;            ][
+;            move-one 270 ;; move down
+;            ]
+;          ][
+;            ifelse([tile-x] of atile > [hole-x] of ahole)[
+;            move-one 0 ;;move right
+;            ][
+;            move-one 180 ;;move left
+;            ]
+;          ]
+;        ]
+;      ]
+;    ]
+;  ]
+;
+;end
 
 to improved-move
   let target-tile thistile
