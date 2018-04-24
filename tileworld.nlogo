@@ -187,64 +187,45 @@ end
 ;    move-one heading]
 ;end
 
-to set-robot-destination-block [arobot ablock ahole]
-  if(abs ([xcor] of arobot - [tile-x] of ablock) <= 1)
+to set-robot-destination-block [arobot atile ahole]
+  if(abs ([xcor] of arobot - [tile-x] of atile) <= 1)
     [
-      if(abs ([ycor] of arobot - [tile-y] of ablock) <= 1)
+      if(abs ([ycor] of arobot - [tile-y] of atile) <= 1)
         [
           set agentState 1 ;; Reposition state
-          set-robot-block-reposition arobot ablock ahole
+          set-robot-destination-hole arobot atile ahole
           stop
         ]
   ]
-  set heading rectify-heading (towards ablock)
+  set heading rectify-heading (towards atile)
   move-one heading
 
 end
 
-to set-robot-block-reposition [arobot ablock ahole]
-  if(abs ([hole-x] of ahole - [tile-x] of ablock) < 1)
-    [
-      if(abs ([hole-y] of ahole - [tile-y] of ablock) < 1)
-        [
-          set agentState 2
-          set-robot-destination-hole arobot ablock ahole
-          stop
+to set-robot-destination-hole [arobot atile ahole]
+  ifelse([tile-x] of atile > [hole-x] of ahole and [tile-x] of atile < [xcor] of arobot and [tile-y] of atile = [ycor] of arobot)[
+    move-one 180 ;;move left
+  ][ifelse([tile-x] of atile < [hole-x] of ahole and [tile-x] of atile > [xcor] of arobot and [tile-y] of atile = [ycor] of arobot)[
+      move-one 0 ;;move-right
+      ][ifelse([tile-y] of atile > [hole-y] of ahole and [tile-y] of atile < [ycor] of arobot and [tile-x] of atile = [xcor] of arobot)[
+        move-one 270 ;;move down
+        ][ifelse([tile-y] of atile < [hole-y] of ahole and [tile-y] of atile > [ycor] of arobot and [tile-x] of atile = [xcor] of arobot)[
+          move-one 90 ;;move-up
+        ][
         ]
-    ]
-
-end
-
-to set-robot-destination-hole [arobot ablock ahole]
-  ifelse(abs ([hole-x] of ahole - [tile-x] of ablock) < 1)
-    [
-      ifelse(abs ([hole-y] of ahole - [tile-y] of ablock) < 1)
-        [
-          set agentState 2
-          set-robot-destination-hole arobot ablock ahole
-          stop
-        ]
-        [
-          set heading rectify-heading (towards ahole)
-          move-one heading
-        ]
-  ][
-  if(abs ([hole-y] of ahole - [tile-y] of ablock) < 1)
-      [
-        set heading rectify-heading (towards ahole)
-        move-one heading
       ]
+    ]
   ]
 
 end
 
 to improved-move
-  let target-tile thishole
-  let target-hole thistile
+  let target-tile thistile
+  let target-hole thishole
   let currAgent self
   if (target-tile != 0 and target-tile != nobody)[
      ifelse (target-hole != 0 and target-hole != nobody)[
-      ask target-tile [set-robot-destination currAgent target-tile]
+      ask target-tile [set-robot-destination currAgent target-hole]
       if (distancexy destination-x destination-y < .5) [ ;(xcor = destination-x and ycor = destination-y)[
         ;Im already at the desired location, so push the tile
         set heading rectify-heading towards target-tile
