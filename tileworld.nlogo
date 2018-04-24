@@ -73,13 +73,16 @@ to update
       set newhole who
   ]
   ask hole newhole [set listOfHoles lput self listOfHoles]]
-  ask robots[set listOfAgents lput self listOfAgents]
   ;;;;;;;;;;;;;;;
+  set listOfHoles remove nobody listOfHoles
+  set listOfBlocks remove nobody listOfBlocks
+  ask robots[if(thistile = nobody or thishole = nobody and not member? self listOfAgents)[set listOfAgents lput self listOfAgents]]
   set listOfBlocks sort listOfBlocks
   set listOfHoles sort listOfHoles
   ;;;;;;;;;;;;;;;;
   ask tiles [age]
   ask holes [age]
+  show listOfAgents
   assignAgent
   no-display
   ask robots [improved-move]
@@ -110,8 +113,24 @@ end
 ;tiles and holes
 to age
   if time-to-live <= 0 [
-    die
+    let deadthing self
     ;; Ask the robots if their block/tile contained the tile or hole that died, and if it did, then add that robot to the listOfAgents
+    if(deadthing = one-of tiles)[
+      ask robots[if(thistile = deadthing )[
+        set thishole 0
+        set thistile 0
+        set listOfAgents lput self listOfAgents
+      ]]
+    ]
+    if(deadthing = one-of tiles)[
+      ask robots
+      [if(thishole = deadthing)[
+        set thishole 0
+        set thistile 0
+        set listOfAgents lput self listOfAgents
+      ]]
+    ]
+    die
   ]
   set time-to-live time-to-live - 1
 end
@@ -123,7 +142,7 @@ end
 ;HINT: This is a bad way to move tiles. Specifically, if the hole is on a diagonal
 ;  from the tile, the robot tends to move back-and-forth a lot.
 to set-robot-destination [arobot ahole]
-  set heading rectify-heading (towards arobot)
+  set heading rectify-heading (towards ahole)
   set heading heading + 180
   let new-x [pxcor] of patch-at dx dy
   let new-y [pycor] of patch-at dx dy
@@ -145,8 +164,11 @@ to move-one [h]
     ask pushed-agents [move-one h]]
   if (breed = tiles and (any? holes-at dx dy))[
     set holes-filled holes-filled + (sum [value] of holes-at dx dy)
+    ask robots [;;Adds the robot back to the list once the hole dies
+      if(thishole = one-of holes)[
+      if ([hole-x] of thishole = dx and [hole-y] of thishole = dy)[set listOfAgents lput self listOfAgents]
+    ]]
     ask holes-at dx dy [die]
-    ask robots [if ([tile-x] of thishole)[set listOfAgents lput myself listOfAgents]] ;;Adds the robot back to the list once the hole dies
     die]
   fd 1
   set heading oldh
@@ -188,15 +210,16 @@ end
 ;end
 
 to set-robot-destination-block [arobot atile ahole]
-  if(abs ([xcor] of arobot - [tile-x] of atile) <= 1)
+  if(abs ([xcor] of arobot - [tile-x] of atile) <= 1) ;;if robot is next to a block in x-direction
     [
-      if(abs ([ycor] of arobot - [tile-y] of atile) <= 1)
+      if(abs ([ycor] of arobot - [tile-y] of atile) <= 1) ;;if robot is next to block in y-direction
         [
           set agentState 1 ;; Reposition state
           set-robot-destination-hole arobot atile ahole
           stop
         ]
   ]
+  set heading (towards atile)
   set heading rectify-heading (heading)
   move-one heading
 
@@ -237,8 +260,8 @@ to improved-move
   let currAgent self
   if (target-tile != 0 and target-tile != nobody)[
      ifelse (target-hole != 0 and target-hole != nobody)[
-      ask target-tile [set-robot-destination currAgent target-tile]
-      if (distancexy destination-x destination-y < 1) [ ;(xcor = destination-x and ycor = destination-y)[
+      ask target-tile [set-robot-destination currAgent target-hole]
+      if (distancexy destination-x destination-y <= .5) [ ;(xcor = destination-x and ycor = destination-y)[
         ;Im already at the desired location, so push the tile
         set heading rectify-heading towards target-tile
         move-one heading
@@ -265,46 +288,41 @@ to assignAgent
   let dist 0.1 ;; The number of moves required between the nearest agent to a block, then a block to a pair
   let currentBid 0.1 ;; The current value per distance of the tile hole pair
   let agentsToDiscard [] ;; This is the list of agents that are marked to be removed from the "available" list
-  if(listOfBlocks != [] and listOfHoles != [])[
+  let closestAgent robot 0
+  if(listOfAgents != [] and listOfBlocks != [] and listOfHoles != [])[
     foreach listOfBlocks
     [
       block ->
       foreach listOfHoles
       [
         h ->
-        if(listOfAgents = [] or listOfHoles = [] or listOfBlocks = [] or block = nobody or h = nobody)[
-          set listOfAgents []
-          set listOfHoles remove h listOfHoles
-          set listOfBlocks remove block listOfBlocks
-          stop]
+        if(block = nobody or h = nobody)[ ;; If the list is changed while iterating, just return the current best answer.
+          stop
+        ]
         set currentBid 0.1
         set dist abs ([hole-x] of h - [tile-x] of block) ;;add x distance
         set dist dist + abs ([hole-y] of h - [tile-y] of block) ;;add y distance
         set currentBid ([value] of h / dist)
         if(currentBid > bid)
         [
-          let closestAgent min-one-of turtle-set listOfAgents [abs([tile-x] of block - xcor) + abs([tile-y] of block - ycor)]
+          set closestAgent min-one-of turtle-set listOfAgents [abs([tile-x] of block - xcor) + abs([tile-y] of block - ycor)]
           set dist dist + abs([tile-x] of block - [xcor] of closestAgent) + abs([tile-y] of block - [ycor] of closestAgent)
           if(dist < [time-to-live] of h and dist < [time-to-live] of block)
           [
             set bid currentBid
             ask closestAgent[set thishole h]
             ask closestAgent[set thistile block]
-            set agentsToDiscard lput closestAgent agentsToDiscard
+            set listOfAgents remove closestAgent listOfAgents
+            set listOfBlocks remove [thistile] of closestAgent listOfBlocks
+            set listOfHoles remove [thishole] of closestAgent listOfHoles
+            stop
           ]
         ]
       ]
     ]
   ]
-  foreach agentsToDiscard [ ;;removes all of the used resources from the "available" lists
-  n ->
-    show listOfAgents
-    show listOfBlocks
-    show listOfHoles
-    set listOfAgents remove n listOfAgents
-    set listOfBlocks remove [thistile] of n listOfBlocks
-    set listOfHoles remove [thishole] of n listOfHoles
-  ]
+
+
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -358,7 +376,7 @@ tile-birth-prob
 tile-birth-prob
 0
 1
-0.21
+0.29
 .01
 1
 NIL
@@ -373,7 +391,7 @@ tile-lifetime
 tile-lifetime
 0
 100
-50.0
+38.0
 1
 1
 NIL
@@ -388,7 +406,7 @@ hole-birth-prob
 hole-birth-prob
 0
 1
-0.21
+0.32
 .01
 1
 NIL
@@ -403,7 +421,7 @@ hole-lifetime
 hole-lifetime
 0
 100
-50.0
+31.0
 1
 1
 NIL
