@@ -1,15 +1,25 @@
-;Mike Meehan, Konark Christian, Arnav Bindra
+; Tileword
+; by
+; Jose M Vidal
+;
+; Tileworld was (first?) described in:
+;
+;Martha Pollack and Marc Ringuette. "Introducing the Tileworld: experimentally evaluating agent architectures."
+;Thomas Dietterich and William Swartout ed. In Proceedings of the Eighth National Conference on Artificial
+; Intelligence,  p. 183--189, AAAI Press. 1990.
+;
+;Note: fixed up for NetLogo 6.0.1 by Matt Saponaro
 
 breed [robots robot]
 breed [tiles tile]
 breed [holes hole]
 
-tiles-own [time-to-live]
+tiles-own [time-to-live tile-x tile-y]
 
-holes-own [time-to-live value]
+holes-own [time-to-live value hole-x hole-y]
 
 ;desitnation- the next place I am heading towards
-robots-own [destination-x destination-y block-x block-y hole-x hole-y]
+robots-own [destination-x destination-y pairlist]
 
 globals [holes-born holes-filled score listOfHoles listOfBlocks listOfAgents]
 
@@ -49,9 +59,19 @@ to update
       setxy random-xcor random-ycor
       set color blue]]
   ;;;;;;;;;;;;;;;
-  foreach listOfHoles [n -> set listOfHoles lput n listOfHoles] ;; Add all holes to the active list of holes
-  set listOfHoles sort-on [value] listOfHoles ;; Might not be the correct syntax. DOUBLE CHECK THIS CODE
-  foreach listOfBlocks [n -> set listOfBlocks lput n listOfBlocks] ;; Add all blocks to the active list of blocks
+  foreach listOfHoles [;; Add all holes to the active list of holes
+    h ->
+    set listOfHoles lput h listOfHoles
+    set hole-x [hole-x] of h
+    set hole-y [hole-y] of h
+  ]
+  set listOfHoles sort-by [value] listOfHoles ;; Might not be the correct syntax. DOUBLE CHECK THIS CODE
+  foreach listOfBlocks [  ;; Add all blocks to the active list of blocks
+    t ->
+    set listOfBlocks lput t listOfBlocks
+    set tile-x [tile-x] of t
+    set tile-y [tile-y] of t
+  ]
   set listOfBlocks sort listOfBlocks
   ;;;;;;;;;;;;;;;;
   ask tiles [age]
@@ -158,7 +178,40 @@ to move
     move-one heading]
 end
 
-to assignAgent
+to-report assignAgent
+  let distAtoB 0 ;; distance of Agent to Block
+  let distBtoH 0 ;; distance of Block to Hole
+  let scorePerMove 0
+  let bid 0
+  let dist 0
+  let currentBid 0
+  foreach listOfBlocks
+ [
+    block ->
+    ;;if( distance(min-one-of listOfAgents [distance block]) < 0)[ ;;If the distance from block to agent is less than the threshold
+    foreach listOfHoles
+    [
+        h ->
+      ;;let agentChosen min-one-of listOfAgents [distance block]
+      ;;set distAtoB [distance block] of agentChosen
+      ;;set distBtoH [distance h] of block
+      set currentBid 0
+      set dist abs ([hole-x] of h - [tile-x] of block) ;;add x distance
+      set dist dist + abs ([hole-y] of h - [tile-y] of block) ;;add y distance
+      set currentBid ([value] of h / dist)
+      if(currentBid > bid)
+      [
+        let closestAgent min-one-of listOfAgents [abs([tile-x] of block - xcor) + abs([tile-y] of block - ycor)]
+        set dist dist + abs([tile-x] of block - [xcor] of closestAgent) + abs([tile-y] of block - [ycor] of closestAgent)
+        if(dist < [time-to-live] of h and dist < [time-to-live] of block)
+        [
+          set bid currentBid
+          set pairlist lput h pairlist
+        ]
+      ]
+    ]
+  ]
+
 
 end
 @#$#@#$#@
